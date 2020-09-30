@@ -6,21 +6,40 @@ from the user.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
-char commands[8][100] = {
+#define INPUT_LIMIT 100
+#define BUFFER_LENGTH 50
+
+char commands[8][INPUT_LIMIT] = {
     "help", "run", "list", "fcfs", "sjf", "priority", "test", "quit"
 };
+#
+
+// This is the struct for the buffer used in the producer/consumer design pattern
+typedef struct {
+    char bufferArray[BUFFER_LENGTH];
+    int isOccupied;
+    int nextJob;
+    int finishedJob;
+    pthread_mutex_t mutex;
+    pthread_cond_t more;
+    pthread_cond_t less;
+
+} buffer_t;
+
+buffer_t buffer;
 
 // Takes user input
 int getCommand()
 {
-    char userInput[100];
+    char userInput[INPUT_LIMIT];
     int valid = 0;
     int returnCommand = -1;
 
     while(valid == 0)
     {
-        fgets(userInput, 100, stdin);
+        fgets(userInput, INPUT_LIMIT, stdin);
         userInput[strlen(userInput)-1]='\0'; 
 
         if(strcasecmp(userInput, commands[0]) == 0) {
@@ -64,6 +83,44 @@ int getCommand()
     return returnCommand;
 }
 
+// Using the producer/consumer design pattern, the scheduling module in the producer.
+// This function is for the scheduling thread.
+void scheduling (buffer_t *buffer, char job) {
+    pthread_mutex_lock(&buffer->mutex);
+    
+    while(buffer->isOccupied >= BUFFER_LENGTH) {
+        pthread_cond_wait(&buffer->less, &buffer->mutex);
+    }
+
+    assert(buffer->isOccupied < BUFFER_LENGTH);
+    buffer->bufferArray[buffer->nextJob++] = job;
+    buffer->nextJob %= BUFFER_LENGTH;
+    buffer->isOccupied++;
+
+    pthread_cond_signal(&buffer->more);
+    pthread_mutex_unlock(&buffer->mutex);
+}
+
+// The consumer is the dispatching module. This fucntion is for the dispatchign thread.
+char dispatching (buffer_t *buffer)
+{
+    char job;
+    pthread_mutex_lock(&buffer->mutex);
+    while(buffer->isOccupied <= 0) {
+        pthread_cond_wait(&buffer->more, &buffer->mutex);
+
+        assert(buffer->isOccupied > 0);
+        job = buffer->bufferArray[buffer->nextJob++];
+        buffer->nextJob %= BUFFER_LENGTH;
+        buffer->isOccupied--;
+
+        pthread_cond_signal(&buffer->less);
+        pthread_mutex_unlock(&buffer->mutex);
+
+        return(job);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int running = 1;
@@ -80,7 +137,7 @@ int main(int argc, char *argv[])
                 printf("HELP\n");
                 break;
             case 2 :
-                printf("RUN\n");
+                printf("Here is a test run job.\n");
                 break;
             case 3 :
                 printf("LIST\n");
