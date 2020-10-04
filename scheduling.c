@@ -1,54 +1,35 @@
 /*
+#NAME: scheduling.c
+#DATE: September 2020
+#AUTHORS: Patrick Dooley and Victor Dudley
+#DESCRIPTION:
 The scheduling module accepts jobs from the user and schedules
 them for execution in the dispatching module. It also enforces
 the scheduling policy.
 */
 
 #include <stdio.h>
+#include <pthread.h>
+#include "main.h"
+#include "jobqueue.h"
+#include "dispatching.h"
 
-
-// FCFS (First Come, First Serve)
-
-// This function determines the waiting time.
-void getWaitTime(int processes[], int numProcesses, int burstTime[], int waitTime[])
+void* scheduling()
 {
-    waitTime[0] = 0; // First process
-
-    for(int i = 1; i < numProcesses; i++) {
-        waitTime[i] = burstTime[i-1] + waitTime[i-1]; // Burst time is calculated by adding burst time and wait time.
+    // Run while the program is considered "running" and there are jobs to schedule.
+    while(getRunning() == 1 || peek() != NULL) {
+        pthread_cond_wait(&cmd_buf_not_empty, &cmd_queue_lock); //lock queue
+        struct node* head = peek(); // get job from job queue head
+        if(head != NULL) {
+            if(head->data != NULL) {
+                if(head->data->progress == 0) {
+                    pthread_mutex_lock(&cmd_job_lock);
+                    head->data->progress = 1; // job is considered running
+                    pthread_mutex_unlock(&cmd_job_lock);
+                }
+            }
+        }
+        pthread_mutex_unlock(&cmd_queue_lock); // unlock queue
     }
-}
-
-// Calculates average time
-void getAverageTime(int processes[], int numProcesses, int burstTime[])
-{
-    int waitTime[numProcesses], turnAroundTime[numProcesses], totalWaitTime = 0, totalTurnAroundTime = 0;\
-
-    getWaitingTime(processes, numProcesses, burstTime, waitTime);
-    getTurnAroundTime(processes, numProcesses, burstTime, waitTime, turnAroundTime);
-
-
-}
-
-// Determines turn around time
-void getTurnAroundTime(int processes[], int numProcesses, int burstTime[], int waitTime[], int turnAroundTime[])
-{
-    for(int i = 0; i < numProcesses; i++) {
-        turnAroundTime[i] = burstTime[i] + waitTime[i]; // Turn around time is calculated by adding burst time and wait time.
-    }
-}
-
-
-// SJF (Shortest Job First)
-
-
-
-// Priority (Priority-Based Scheduling)
-
-
-
-int main(int argc, char *argv[])
-{
-
-    return 0;
+    return NULL;
 }
