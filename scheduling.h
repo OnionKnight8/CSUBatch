@@ -2,6 +2,6 @@
 #ifndef SCHEDULING
 #define SCHEDULING
 
-void* scheduling();
+void* scheduling(void* isScheduling);
 
 #endif

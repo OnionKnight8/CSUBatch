@@ -16,6 +16,7 @@ This is the driver for the CSUBatch file. Based on Dr. Zhou's 'csubatch_sample.c
 #include "commandline.h"
 #include "scheduling.h"
 #include "dispatching.h"
+#include "jobqueue.h"
 
 int isRunning = 1;
 
@@ -25,24 +26,29 @@ int main(int argc, char *argv[])
 
     pthread_t scheduling_thread, dispatching_thread;
 
-    // Create threads
-    pthread_create(&scheduling_thread, NULL, &scheduling, NULL);
-    pthread_create(&dispatching_thread, NULL, &dispatching, NULL);
-
     // Initialize lock and condition variables
     pthread_mutex_init(&cmd_queue_lock, NULL);
-    pthread_mutex_init(&cmd_job_lock, NULL);
-    pthread_cond_init(&cmd_buf_not_full, NULL);
+    //pthread_mutex_init(&cmd_job_lock, NULL);
+    //pthread_cond_init(&cmd_buf_not_full, NULL);
     pthread_cond_init(&cmd_buf_not_empty, NULL);
+    create();
 
-    // Main will not continue until threads are complete.
-    //pthread_join(scheduling_thread, NULL);
-    //pthread_join(dispatching_thread, NULL);
+    // Create threads
+    pthread_create(&scheduling_thread, NULL, &scheduling, getSchedulingCheck());
+    pthread_create(&dispatching_thread, NULL, &dispatching, NULL);
 
     commandLineLoop();
 
-    pthread_mutex_destroy(&cmd_queue_lock);
-    pthread_cond_destroy(&cmd_buf_not_full);
+    pthread_cond_signal(&cmd_buf_not_empty);
+    pthread_mutex_unlock(&cmd_queue_lock);
+
+    // Main will not continue until threads are complete.
+    pthread_join(scheduling_thread, NULL);
+    pthread_join(dispatching_thread, NULL);
+
+    //pthread_mutex_destroy(&cmd_queue_lock);
+    //pthread_mutex_destroy(&cmd_job_lock);
+    //pthread_cond_destroy(&cmd_buf_not_full);
     pthread_cond_destroy(&cmd_buf_not_empty);
     return 0;
 }

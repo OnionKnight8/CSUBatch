@@ -5,6 +5,8 @@
 
 int getIsDispatching();
 void setIsDispatching(int newIsDispatching);
+enum check schedulingCheck;
+enum check* getSchedulingCheck();
 void* dispatching();
 
 #endif
